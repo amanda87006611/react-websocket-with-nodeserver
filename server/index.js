@@ -12,11 +12,9 @@ const users = {};
 
 const handleMessage = (bytes, uuid) => {
   const message = JSON.parse(bytes.toString());
-  // console.log(`${username} connected`);
   const user = users[uuid];
   user.state = message;
   broadcast();
-  console.log("user", user);
   console.log(
     `${user.username} updated their updated state: ${JSON.stringify(
       user.state

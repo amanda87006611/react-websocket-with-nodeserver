@@ -1,43 +1,97 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import throttle from "lodash.throttle";
 import { Cursor } from "./component/Cursor";
+import { CgHello } from "react-icons/cg";
+import TextEditor from "./component/TextEditor";
+import "./component/style.css";
 
 const Home = ({ username }) => {
   const WS_URL = "ws://127.0.0.1:8000";
+  const currentUserUuid = useRef();
+
+  const [socket, setSocket] = useState(null);
+  const [quill, setQuill] = useState(null);
+
   const { sendJsonMessage, lastJsonMessage } = useWebSocket(WS_URL, {
     queryParams: { username },
+    onOpen: (evt) => {
+      setSocket(evt.currentTarget);
+      currentUserUuid.current = evt.currentTarget.url.split("=")[1];
+    },
   });
 
   const THROTTLE = 50;
   const sendJsonMessageThrottled = useRef(throttle(sendJsonMessage, THROTTLE));
   //使用Ref包住function -> 本身為一個obj / ref屬性改變不會導致畫面的render(僅初次才致畫面render)
 
-  const renderCursor = (users) => {
+  const renderCursor = (users, currentUserUuid) => {
     return Object.keys(users).map((uuid) => {
-      const user = users[uuid];
-      return <Cursor key={uuid} point={[user.state.x, user.state.y]} />;
+      if (users[uuid].username !== currentUserUuid) {
+        const user = users[uuid];
+        return <Cursor key={uuid} point={[user.state.x, user.state.y]} />;
+      }
+      return null;
     });
   };
 
   useEffect(() => {
     // initial val
     sendJsonMessage({
+      type: "cursor",
       x: 0,
       y: 0,
     });
     window.addEventListener("mousemove", (e) => {
       sendJsonMessageThrottled.current({
+        type: "cursor",
         x: e.clientX,
         y: e.clientY,
       });
     });
   }, []);
 
+  useEffect(() => {
+    if (socket === null || quill === null) return;
+
+    const handler = (delta, olddelta, source) => {
+      if (source !== "user") return;
+      const message = { type: "edit", delta };
+      sendJsonMessage(message);
+    };
+
+    quill.on("text-change", handler);
+
+    return () => quill.off("text-change", handler);
+  }, [socket, quill]);
+
+  // useEffect(() => {
+  //   if (socket === null || quill === null) return;
+
+  //   const handler = (delta) => {
+  //     console.log("HANDLER");
+  //     quill.updateContents(delta);
+  //   };
+
+  //   onMessage("message", handler);
+
+  //   return () => {
+  //     offMessage("message", handler);
+  //   };
+  // }, [socket, quill]);
+  console.log("lastJsonMessage", lastJsonMessage);
   return (
     <>
-      <h1>Hello , {username}</h1>
-      {lastJsonMessage && <>{renderCursor(lastJsonMessage)}</>}
+      <div className='topBox'>
+        <CgHello />
+        <h4 className='title'>
+          Hello , {username} Welcome back to your editor.
+        </h4>
+      </div>
+      <TextEditor setQuill={setQuill} />
+      {lastJsonMessage && (
+        <>{renderCursor(lastJsonMessage, currentUserUuid.current)}</>
+      )}
     </>
   );
 };
