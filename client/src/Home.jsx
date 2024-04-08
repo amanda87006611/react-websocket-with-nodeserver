@@ -65,21 +65,23 @@ const Home = ({ username }) => {
     return () => quill.off("text-change", handler);
   }, [socket, quill]);
 
-  // useEffect(() => {
-  //   if (socket === null || quill === null) return;
+  const handleReceivedMessage = (messageEvent) => {
+    Object.keys(messageEvent).forEach((uuid) => {
+      const user = messageEvent[uuid];
+      if (
+        user.state.type === "edit" &&
+        user.username !== currentUserUuid.current
+      ) {
+        quill.updateContents(user.state.delta);
+      }
+    });
+  };
 
-  //   const handler = (delta) => {
-  //     console.log("HANDLER");
-  //     quill.updateContents(delta);
-  //   };
+  useEffect(() => {
+    if (socket === null || quill === null) return;
+    handleReceivedMessage(lastJsonMessage);
+  }, [lastJsonMessage]);
 
-  //   onMessage("message", handler);
-
-  //   return () => {
-  //     offMessage("message", handler);
-  //   };
-  // }, [socket, quill]);
-  console.log("lastJsonMessage", lastJsonMessage);
   return (
     <>
       <div className='topBox'>
